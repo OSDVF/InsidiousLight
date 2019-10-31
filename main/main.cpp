@@ -11,6 +11,7 @@
 #include "esp_event_loop.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "WiFi Functions.cpp"
 
 #define STA_SSID "OSDVF"
 #define STA_PASSWORD "ahoj1234"
@@ -21,37 +22,48 @@
 #define WIFI_HIDDEN 1
 
 // Event group
+#define ENUM_HAS_BIT(e,b) (e & b)
 static EventGroupHandle_t _event_group;
-const int STA_CONNECTED_BIT = BIT0;
-const int STA_DISCONNECTED_BIT = BIT1;
+const int STA_READY = BIT0;
+const int STA_CONNECTED_BIT = BIT1;
+const int STA_DISCONNECTED_BIT = BIT2;
+const int STA_SCANNING_BIT = BIT3;
+const int STA_SCAN_END_BIT = BIT4;
 
-static const char *WIFI_TAG = "Zarovka:WIFI";
+const int STA_BITS = STA_READY | STA_CONNECTED_BIT | STA_DISCONNECTED_BIT | STA_SCAN_END_BIT | STA_SCANNING_BIT;
+
+static const char *_Scheduler_Tag = "Zarovka:Sched";
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
+	EventBits_t staBits = xEventGroupGetBits(_event_group);
 	if (event_base == WIFI_EVENT)
 	{
-		if(event_id == WIFI_EVENT_AP_START)
-			ESP_LOGI(WIFI_TAG, "Own AP started");
+		if (event_id == WIFI_EVENT_AP_START)
+			ESP_LOGI(_Scheduler_Tag, "Own AP started");
 		if (event_id == WIFI_EVENT_STA_START)
-			esp_wifi_connect();
+			xEventGroupSetBits(_event_group, STA_READY);
 		else if (event_id == WIFI_EVENT_STA_DISCONNECTED)
 		{
-			esp_wifi_connect();
 			xEventGroupClearBits(_event_group, STA_CONNECTED_BIT);
-			ESP_LOGI(WIFI_TAG, "Connecting again to AP");
+			xEventGroupSetBits(_event_group, STA_DISCONNECTED_BIT);
 		}
-		else if (event_id == IP_EVENT_STA_GOT_IP)
+	}
+	else if (event_base == IP_EVENT)
+	{
+		if (event_id == IP_EVENT_STA_GOT_IP)
 		{
-			ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-			ESP_LOGI(WIFI_TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+			//ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+			//ESP_LOGI(WIFI_TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+			//Beacuse tcpip_adapter aleready notifies us
 			xEventGroupSetBits(_event_group, STA_CONNECTED_BIT);
+			xEventGroupClearBits(_event_group, STA_DISCONNECTED_BIT);
 		}
 	}
 }
 
 // print the list of connected stations
-void printStationList()
+void printConnectedClients()
 {
 	printf(" Connected stations:\n");
 	printf("--------------------------------------------------\n");
@@ -78,35 +90,46 @@ void printStationList()
 	printf("\n");
 }
 
-// Monitor task, receive Wifi AP events
+//A tady budeme čekat až někdo něco zahlásí ať můžeme v klidu reagovat a nechta ho dál hlásit
 void monitor_task(void *pvParameter)
 {
 	while (1)
 	{
 
-		EventBits_t staBits = xEventGroupWaitBits(_event_group, STA_CONNECTED_BIT | STA_DISCONNECTED_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-		if ((staBits & STA_CONNECTED_BIT) != 0)
-			printf("New station connected\n\n");
-		else
-			printf("A station disconnected\n\n");
+		EventBits_t staBits = xEventGroupWaitBits(_event_group, STA_BITS, pdTRUE, pdFALSE, portMAX_DELAY);
+		if ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT)
+			ESP_LOGI(_Scheduler_Tag,"Connected to a station\n");
+		else if ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT)
+		{
+			ESP_LOGI(_Scheduler_Tag,"Disconnected from the station\n");
+			WifiFunctions::Scan();
+		}
+		else if ENUM_HAS_BIT(staBits, STA_READY)
+		{
+			ESP_LOGI(_Scheduler_Tag, "Connecting again to a station");
+			ESP_ERROR_CHECK(esp_wifi_connect());
+		}
 	}
 }
 
-// Station list task, print station list every 10 seconds
+//Tohle tu zatím necháme ale asi ne na dlouho, vypisuje to periodiky seznam připojených klientů
 void station_list_task(void *pvParameter)
 {
 	while (1)
 	{
 
-		printStationList();
+		printConnectedClients();
 		vTaskDelay(10000 / portTICK_RATE_MS);
 	}
 }
 
+extern "C"
+{
+	void app_main(void);
+}
 // Main application
 void app_main()
 {
-
 	// disable the default wifi logging
 	esp_log_level_set("wifi", ESP_LOG_NONE);
 
@@ -165,9 +188,9 @@ void app_main()
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
 	ESP_ERROR_CHECK(esp_wifi_start());
 
-	printf("Starting access point, SSID=%s\n", AP_SSID);
+	printf("\nAhooj šéfe, vítej v ovládacím panelu Zákeřné Žárovki.\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", AP_SSID,STA_SSID);
 
-	// start the main task
+	// Sranda začíná. Muhahahahah
 	xTaskCreate(&monitor_task, "monitor_task", 2048, NULL, 5, NULL);
 	xTaskCreate(&station_list_task, "station_list_task", 2048, NULL, 5, NULL);
 }
