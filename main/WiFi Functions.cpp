@@ -2,17 +2,26 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
 #define DEFAULT_SCAN_LIST_SIZE 20
-static const char *SCAN_TAG = "WifiScan";
+static const char *SCAN_TAG = "Zarovka:Scan";
 class WifiFunctions
 {
     public: static void Scan()
     {
         uint16_t number = DEFAULT_SCAN_LIST_SIZE;
         wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+        const wifi_scan_config_t scConfig = {
+            .ssid = 0,
+            .bssid = 0,
+            .channel = 0,
+            .show_hidden = true,
+            .scan_type = WIFI_SCAN_TYPE_PASSIVE,
+            .scan_time = {.passive=0}
+        };
+        ESP_LOGI(SCAN_TAG,"Starting scan...");
         
-        ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, true));
+        ESP_ERROR_CHECK(esp_wifi_scan_start(&scConfig, true));
         #define STRING(s) #s
-        ESP_LOGI(SCAN_TAG,"Started scan with list size " STRING(DEFAULT_SCAN_LIST_SIZE));
+        ESP_LOGI(SCAN_TAG,"Started scan with list size %d", DEFAULT_SCAN_LIST_SIZE);
         ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
 
         for (int i = 0; i < DEFAULT_SCAN_LIST_SIZE; i++)

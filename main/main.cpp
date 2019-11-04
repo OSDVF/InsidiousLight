@@ -13,16 +13,23 @@
 #include "nvs_flash.h"
 #include "WiFi Functions.cpp"
 
-#define STA_SSID "OSDVF"
-#define STA_PASSWORD "ahoj1234"
-#define AP_SSID "Muhahaha"
-#define AP_PASSWORD "nowyouknowmypassword"
-#define AP_MAX_CONN 4
-#define AP_CHANNEL 0
-#define WIFI_HIDDEN 1
+#define LOG_COLOR_WHITE "37"
+#define LOG_UNDERLINED "\033[4;m"
+#define LOG_BOLD_UNDERLINED(COLOR) "\033[1;4;" COLOR "m"
+#define LOG_RESET_BOLD "\033[21m"
+#define LOG_RESET_UNDERLINE "\033[24m"
+#define LOG_RESET_ALL "\033[0;21;24;m"
+
+char _sta_ssid[32] = "OSDVF";
+char _sta_password[32] = "ahoj1234";
+char _ap_ssid[16] = "Muhahaha";
+char _ap_password[32] = "nowyouknowmypassword";
+uint8_t _ap_max_clients = 4;
+uint8_t _ap_channel = 0;
+uint8_t _ap_hidden = 1;
 
 // Event group
-#define ENUM_HAS_BIT(e,b) (e & b)
+#define ENUM_HAS_BIT(e, b) (e & b)
 static EventGroupHandle_t _event_group;
 const int STA_READY = BIT0;
 const int STA_CONNECTED_BIT = BIT1;
@@ -36,7 +43,6 @@ static const char *_Scheduler_Tag = "Zarovka:Sched";
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-	EventBits_t staBits = xEventGroupGetBits(_event_group);
 	if (event_base == WIFI_EVENT)
 	{
 		if (event_id == WIFI_EVENT_AP_START)
@@ -90,24 +96,36 @@ void printConnectedClients()
 	printf("\n");
 }
 
+TaskHandle_t monitor_task_handle;
 //A tady budeme čekat až někdo něco zahlásí ať můžeme v klidu reagovat a nechta ho dál hlásit
 void monitor_task(void *pvParameter)
 {
 	while (1)
 	{
-
+		printf("%d", uxTaskGetStackHighWaterMark(monitor_task_handle));
 		EventBits_t staBits = xEventGroupWaitBits(_event_group, STA_BITS, pdTRUE, pdFALSE, portMAX_DELAY);
 		if ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT)
-			ESP_LOGI(_Scheduler_Tag,"Connected to a station\n");
-		else if ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT)
+			ESP_LOGI(_Scheduler_Tag, "Connected to an AP\n");
+		else if (!ENUM_HAS_BIT(staBits, STA_SCANNING_BIT))
 		{
-			ESP_LOGI(_Scheduler_Tag,"Disconnected from the station\n");
-			WifiFunctions::Scan();
+			if (ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT))
+			{
+				ESP_LOGI(_Scheduler_Tag, "Disconnected from the AP\n");
+				xEventGroupSetBits(_event_group, STA_SCANNING_BIT);
+				WifiFunctions::Scan();
+				xEventGroupClearBits(_event_group, STA_SCANNING_BIT);
+				xEventGroupSetBits(_event_group, STA_SCAN_END_BIT);
+			}
+			else if (ENUM_HAS_BIT(staBits, STA_READY))
+			{
+				ESP_LOGI(_Scheduler_Tag, "Connecting again to an AP");
+				ESP_ERROR_CHECK(esp_wifi_connect());
+			}
 		}
-		else if ENUM_HAS_BIT(staBits, STA_READY)
+		
+		if(ENUM_HAS_BIT(staBits,STA_SCAN_END_BIT))
 		{
-			ESP_LOGI(_Scheduler_Tag, "Connecting again to a station");
-			ESP_ERROR_CHECK(esp_wifi_connect());
+			xEventGroupClearBits(_event_group, STA_SCAN_END_BIT);
 		}
 	}
 }
@@ -117,7 +135,6 @@ void station_list_task(void *pvParameter)
 {
 	while (1)
 	{
-
 		printConnectedClients();
 		vTaskDelay(10000 / portTICK_RATE_MS);
 	}
@@ -130,9 +147,6 @@ extern "C"
 // Main application
 void app_main()
 {
-	// disable the default wifi logging
-	esp_log_level_set("wifi", ESP_LOG_NONE);
-
 	// create the event group to handle wifi events
 	_event_group = xEventGroupCreate();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -167,30 +181,35 @@ void app_main()
 	ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+	//ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_AP,WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N|WIFI_PROTOCOL_LR));
+	//ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_STA,WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N|WIFI_PROTOCOL_LR));
 
 	wifi_config_t ap_config;
 	wifi_config_t sta_config;
 
 	memset(&ap_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)ap_config.ap.ssid, AP_SSID, sizeof(AP_SSID));
-	strncpy((char *)ap_config.ap.password, AP_PASSWORD, sizeof(AP_PASSWORD));
+	strncpy((char *)ap_config.ap.ssid, _ap_ssid, sizeof(_ap_ssid));
+	strncpy((char *)ap_config.ap.password, _ap_password, sizeof(_ap_password));
 	ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
 	ap_config.ap.ssid_len = 0;
-	ap_config.ap.max_connection = AP_MAX_CONN;
-	ap_config.ap.channel = AP_CHANNEL;
+	ap_config.ap.ssid_hidden = _ap_hidden;
+	ap_config.ap.max_connection = _ap_max_clients;
+	ap_config.ap.channel = _ap_channel;
 
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
 
 	memset(&sta_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)sta_config.sta.ssid, STA_SSID, sizeof(STA_SSID));
-	strncpy((char *)sta_config.sta.password, STA_PASSWORD, sizeof(STA_PASSWORD));
+	strncpy((char *)sta_config.sta.ssid, _sta_ssid, sizeof(_sta_ssid));
+	strncpy((char *)sta_config.sta.password, _sta_password, sizeof(_sta_password));
+	//sta_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+	//sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
 	ESP_ERROR_CHECK(esp_wifi_start());
 
-	printf("\nAhooj šéfe, vítej v ovládacím panelu Zákeřné Žárovki.\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", AP_SSID,STA_SSID);
+	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) "Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né " LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD(LOG_COLOR_PURPLE) "ki." LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", _ap_ssid, _sta_ssid);
 
 	// Sranda začíná. Muhahahahah
-	xTaskCreate(&monitor_task, "monitor_task", 2048, NULL, 5, NULL);
+	xTaskCreate(&monitor_task, "monitor_task", 4096, NULL, 5, &monitor_task_handle);
 	xTaskCreate(&station_list_task, "station_list_task", 2048, NULL, 5, NULL);
 }
