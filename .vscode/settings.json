@@ -1,0 +1,27 @@
+{
+    "files.associations": {
+        "esp_system.h": "c",
+        "freertos.h": "c",
+        "freertosconfig.h": "c",
+        "esp_wifi.h": "c",
+        "task.h": "c",
+        "nvs_flash.h": "c",
+        "wifi functions.cpp": "c",
+        "*.inc": "cpp"
+    },
+    "taskButtons.buttons": [
+        {
+            "task": "BuildAll",
+            "buttonLabel": "Build all"
+        },
+        {
+            "task": "BuildApp",
+            "buttonLabel": "Build app"
+        },
+        {
+            "task":"Flash",
+            "buttonLabel":"Flash"
+        }
+    ],
+    "terminal.integrated.automationShell.windows": "C:/Windows/System32/cmd.exe"
+}

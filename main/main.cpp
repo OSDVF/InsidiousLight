@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "WiFi Functions.cpp"
+#include "WebServer.cpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -28,9 +29,18 @@ uint8_t _ap_max_clients = 4;
 uint8_t _ap_channel = 0;
 uint8_t _ap_hidden = 1;
 
+union IPv4{//Our small cute IPv4 holder :)
+	uint32_t ip;
+	uint8_t octets[4];
+};
+IPv4 _ap_ipv4 = {.octets = {192,168,10,1}};
+IPv4 _ap_gateway = {.octets ={192,168,10,1}};
+IPv4 _ap_mask = {.octets = {255,255,255,0}};
+
 // Event group
 #define ENUM_HAS_BIT(e, b) (e & b)
 static EventGroupHandle_t _event_group;
+static httpd_handle_t _httpsServer = NULL;
 const int STA_READY = BIT0;
 const int STA_CONNECTED_BIT = BIT1;
 const int STA_DISCONNECTED_BIT = BIT2;
@@ -46,7 +56,13 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 	if (event_base == WIFI_EVENT)
 	{
 		if (event_id == WIFI_EVENT_AP_START)
+		{
 			ESP_LOGI(_Scheduler_Tag, "Own AP started");
+			if (_httpsServer == NULL)
+			{
+				_httpsServer = WebServer::Start();
+			}
+		}
 		if (event_id == WIFI_EVENT_STA_START)
 			xEventGroupSetBits(_event_group, STA_READY);
 		else if (event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -64,6 +80,10 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			//Beacuse tcpip_adapter aleready notifies us
 			xEventGroupSetBits(_event_group, STA_CONNECTED_BIT);
 			xEventGroupClearBits(_event_group, STA_DISCONNECTED_BIT);
+			if (_httpsServer == NULL)
+			{
+				_httpsServer = WebServer::Start();
+			}
 		}
 	}
 }
@@ -96,16 +116,19 @@ void printConnectedClients()
 	printf("\n");
 }
 
-TaskHandle_t monitor_task_handle;
+TaskHandle_t _scanSchedulerHandle;
 //A tady budeme čekat až někdo něco zahlásí ať můžeme v klidu reagovat a nechta ho dál hlásit
-void monitor_task(void *pvParameter)
+void scanSchedulerTask(void *pvParameter)
 {
 	while (1)
 	{
-		printf("%d", uxTaskGetStackHighWaterMark(monitor_task_handle));
+		printf("%d", uxTaskGetStackHighWaterMark(_scanSchedulerHandle));
 		EventBits_t staBits = xEventGroupWaitBits(_event_group, STA_BITS, pdTRUE, pdFALSE, portMAX_DELAY);
-		if ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT)
-			ESP_LOGI(_Scheduler_Tag, "Connected to an AP\n");
+		if
+			ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT)
+			{
+				ESP_LOGI(_Scheduler_Tag, "Connected to an AP\n");
+			}
 		else if (!ENUM_HAS_BIT(staBits, STA_SCANNING_BIT))
 		{
 			if (ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT))
@@ -122,8 +145,8 @@ void monitor_task(void *pvParameter)
 				ESP_ERROR_CHECK(esp_wifi_connect());
 			}
 		}
-		
-		if(ENUM_HAS_BIT(staBits,STA_SCAN_END_BIT))
+
+		if (ENUM_HAS_BIT(staBits, STA_SCAN_END_BIT))
 		{
 			xEventGroupClearBits(_event_group, STA_SCAN_END_BIT);
 		}
@@ -163,9 +186,10 @@ void app_main()
 	// assign a static IP to the network interface
 	tcpip_adapter_ip_info_t info;
 	memset(&info, 0, sizeof(info));
-	IP4_ADDR(&info.ip, 192, 168, 10, 1);
-	IP4_ADDR(&info.gw, 192, 168, 10, 1);
-	IP4_ADDR(&info.netmask, 255, 255, 255, 0);
+	info.ip = {.addr= _ap_ipv4.ip};
+	info.gw = {.addr= _ap_gateway.ip};
+	info.netmask = {.addr= _ap_mask.ip};
+	ESP_LOGI(_Scheduler_Tag,"Own IP: %d.%d.%d.%d (%dB)",_ap_ipv4.octets[0],_ap_ipv4.octets[1],_ap_ipv4.octets[2],_ap_ipv4.octets[4],_ap_ipv4.ip);
 	ESP_ERROR_CHECK(tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &info));
 
 	// start the DHCP server
@@ -210,6 +234,6 @@ void app_main()
 	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) "Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né " LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD(LOG_COLOR_PURPLE) "ki." LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", _ap_ssid, _sta_ssid);
 
 	// Sranda začíná. Muhahahahah
-	xTaskCreate(&monitor_task, "monitor_task", 4096, NULL, 5, &monitor_task_handle);
+	xTaskCreate(&scanSchedulerTask, "scanSchedulerTask", 4096, NULL, 5, &_scanSchedulerHandle);
 	xTaskCreate(&station_list_task, "station_list_task", 2048, NULL, 5, NULL);
 }

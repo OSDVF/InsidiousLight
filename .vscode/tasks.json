@@ -1,0 +1,143 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build App",
+            "group": "build",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "app"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Build All",
+            "group": "build",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "build"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Flash",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "-p",
+                "COM3",
+                "flash"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Flash compiled",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "-p",
+                "COM3",
+                "app-flash"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Flash compiled & monitor",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "-p",
+                "COM3",
+                "app-flash",
+                "monitor"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Erase flash",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "erase_flash"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Flash and monitor",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "-p",
+                "COM3",
+                "flash",
+                "monitor"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Monitor",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "-p",
+                "COM3",
+                "monitor"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Clean",
+            "command": "python",
+            "type": "shell",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "clean"
+            ],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Config",
+            "type": "shell",
+            "command": "start cmd /C python",
+            "args": [
+                "E:/esp-idf/tools/idf.py",
+                "menuconfig"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

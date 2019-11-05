@@ -24,7 +24,7 @@ class WifiFunctions
         ESP_LOGI(SCAN_TAG,"Started scan with list size %d", DEFAULT_SCAN_LIST_SIZE);
         ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
 
-        for (int i = 0; i < DEFAULT_SCAN_LIST_SIZE; i++)
+        for (int i = 0; i < number; i++)
         {
             ESP_LOGI(SCAN_TAG, "SSID \t\t%s", ap_info[i].ssid);
             ESP_LOGI(SCAN_TAG, "RSSI \t\t%d", ap_info[i].rssi);

@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32-Win",
+            "includePath": [
+                "${workspaceRoot}",
+                "${workspaceRoot}/build/include",
+                "${workspaceRoot}/build/",
+                "${workspaceRoot}/build/config",
+                "E:/esp-idf/components/**",
+                "E:/esp-idf/components/esp_https_server/include"
+            ],
+            "intelliSenseMode": "gcc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceRoot}/main/",
+                    "${workspaceRoot}/build/include",
+                    "${workspaceRoot}/build/",
+                    "${workspaceRoot}/build/config",
+                    "E:/esp-idf/components/**"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "E:/esp-idf/.vscode/browse.vc.db"
+            },
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+        }
+    ],
+    "version": 4
+}
