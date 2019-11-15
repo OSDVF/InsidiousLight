@@ -13,6 +13,7 @@
 #include "nvs_flash.h"
 #include "WiFi Functions.cpp"
 #include "WebServer.cpp"
+#include "DnsServer.cpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -25,6 +26,9 @@ char _sta_ssid[32] = "OSDVF";
 char _sta_password[32] = "ahoj1234";
 char _ap_ssid[16] = "Muhahaha";
 char _ap_password[32] = "nowyouknowmypassword";
+char **_domainNames;
+uint8_t _domainCount = 2;
+uint8_t _domainMaxLen = 23;
 uint8_t _ap_max_clients = 4;
 uint8_t _ap_channel = 0;
 uint8_t _ap_hidden = 1;
@@ -62,6 +66,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			{
 				_httpsServer = WebServer::Start();
 			}
+			DnsServer::Init(TCPIP_ADAPTER_IF_AP,_domainNames,_domainCount,_domainMaxLen);
 		}
 		if (event_id == WIFI_EVENT_STA_START)
 			xEventGroupSetBits(_event_group, STA_READY);
@@ -170,12 +175,25 @@ extern "C"
 // Main application
 void app_main()
 {
+	//Get the SETTINGS
+	_domainNames = new char*[_domainCount];
+	constexpr const char* n[] = {"chvaly.dorostmladez.cz","zarovka.cz"};
+	for(int i=0;i<2;i++)
+	{
+		_domainNames[i] = new char[_domainMaxLen];
+		strcpy(_domainNames[i],n[i]);
+	}
 	// create the event group to handle wifi events
 	_event_group = xEventGroupCreate();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
 	// initialize NVS
-	ESP_ERROR_CHECK(nvs_flash_init());
+	esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK( nvs_flash_erase() );
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
 
 	// initialize the tcp stack
 	tcpip_adapter_init();
@@ -212,8 +230,8 @@ void app_main()
 	wifi_config_t sta_config;
 
 	memset(&ap_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)ap_config.ap.ssid, _ap_ssid, sizeof(_ap_ssid));
-	strncpy((char *)ap_config.ap.password, _ap_password, sizeof(_ap_password));
+	strncpy((char *)ap_config.ap.ssid, _ap_ssid, strlen(_ap_ssid));
+	strncpy((char *)ap_config.ap.password, _ap_password, strlen(_ap_password));
 	ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
 	ap_config.ap.ssid_len = 0;
 	ap_config.ap.ssid_hidden = _ap_hidden;
@@ -223,8 +241,8 @@ void app_main()
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
 
 	memset(&sta_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)sta_config.sta.ssid, _sta_ssid, sizeof(_sta_ssid));
-	strncpy((char *)sta_config.sta.password, _sta_password, sizeof(_sta_password));
+	strncpy((char *)sta_config.sta.ssid, _sta_ssid, strlen(_sta_ssid));
+	strncpy((char *)sta_config.sta.password, _sta_password, strlen(_sta_password));
 	//sta_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
 	//sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 

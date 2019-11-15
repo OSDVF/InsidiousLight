@@ -7,7 +7,8 @@
         "task.h": "c",
         "nvs_flash.h": "c",
         "wifi functions.cpp": "c",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "event_groups.h": "c"
     },
     "taskButtons.buttons": [
         {
