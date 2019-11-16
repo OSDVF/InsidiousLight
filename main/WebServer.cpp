@@ -33,8 +33,6 @@ public:
         httpd_handle_t server = NULL;
 
         // Start the httpd server
-        ESP_LOGI(TAG, "Starting server");
-
         httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();
 
         extern const unsigned char cacert_pem_start[] asm("_binary_cacert_pem_start");

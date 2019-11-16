@@ -51,6 +51,7 @@ private:
     inline __restrict static char ** _weHaveTheseNames;
     inline static int _namesCount;
     inline static int _maxNameLength;
+    inline static bool _running = false;
 
     static bool dnsCmp(const char *first,const char *second, int maxLen)
     {
@@ -213,8 +214,13 @@ public:
         _namesCount = count;
         _maxNameLength = maxNameLength;
         adapter = tcpip_adapter;
+        _running = true;
 
         // xTaskCreate(&dns_server_receive_task, "dns_server_receive_task", 3048, &adapter, 5, NULL);
         xTaskCreate(&dns_server_receive_task, "dns_server_receive_task", 3096, &adapter, 5, NULL);
+    }
+    static bool Running()
+    {
+        return _running;
     }
 };

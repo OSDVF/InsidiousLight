@@ -17,6 +17,7 @@
 #include "DnsServer.cpp"
 #include "cmd_system.h"
 #include "Systems.cpp"
+#include "WifiCommands.cpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -69,13 +70,14 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			{
 				_httpsServer = WebServer::Start();
 			}
-			DnsServer::Init(TCPIP_ADAPTER_IF_AP, _domainNames, _domainCount, _domainMaxLen);
+			if(!DnsServer::Running())
+				DnsServer::Init(TCPIP_ADAPTER_IF_AP, _domainNames, _domainCount, _domainMaxLen);
 		}
+		
 		if (event_id == WIFI_EVENT_STA_START)
 			xEventGroupSetBits(_event_group, STA_READY);
 		else if (event_id == WIFI_EVENT_STA_DISCONNECTED)
 		{
-			xEventGroupClearBits(_event_group, STA_CONNECTED_BIT);
 			xEventGroupSetBits(_event_group, STA_DISCONNECTED_BIT);
 		}
 	}
@@ -83,11 +85,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 	{
 		if (event_id == IP_EVENT_STA_GOT_IP)
 		{
-			//ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-			//ESP_LOGI(WIFI_TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
-			//Beacuse tcpip_adapter aleready notifies us
 			xEventGroupSetBits(_event_group, STA_CONNECTED_BIT);
-			xEventGroupClearBits(_event_group, STA_DISCONNECTED_BIT);
 			if (_httpsServer == NULL)
 			{
 				_httpsServer = WebServer::Start();
@@ -96,61 +94,36 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 	}
 }
 
-TaskHandle_t _scanSchedulerHandle;
 //A tady budeme čekat až někdo něco zahlásí ať můžeme v klidu reagovat a nechta ho dál hlásit
 void scanSchedulerTask(void *pvParameter)
 {
 	while (1)
 	{
-		printf("%d", uxTaskGetStackHighWaterMark(_scanSchedulerHandle));
 		EventBits_t staBits = xEventGroupWaitBits(_event_group, STA_BITS, pdTRUE, pdFALSE, portMAX_DELAY);
-		if
-			ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT)
+		if (!ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT))
+		{
+			if (ENUM_HAS_BIT(staBits, STA_CONNECTED_BIT))
 			{
 				ESP_LOGI(_Scheduler_Tag, "Connected to an AP\n");
 			}
-		else if (!ENUM_HAS_BIT(staBits, STA_SCANNING_BIT))
-		{
-			if (ENUM_HAS_BIT(staBits, STA_DISCONNECTED_BIT))
+			else if (ENUM_HAS_BIT(staBits, STA_SCANNING_BIT))
 			{
-				ESP_LOGI(_Scheduler_Tag, "Disconnected from the AP\n");
-				xEventGroupSetBits(_event_group, STA_SCANNING_BIT);
-				WifiFunctions::Scan();
-				xEventGroupClearBits(_event_group, STA_SCANNING_BIT);
-				xEventGroupSetBits(_event_group, STA_SCAN_END_BIT);
+				xEventGroupWaitBits(_event_group, STA_SCAN_END_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+				ESP_LOGI(_Scheduler_Tag, "Connecting to an AP (after scan)...");
+				ESP_ERROR_CHECK(esp_wifi_connect());
 			}
-			else if (ENUM_HAS_BIT(staBits, STA_READY))
+			else
 			{
-				ESP_LOGI(_Scheduler_Tag, "Connecting again to an AP");
+				ESP_LOGI(_Scheduler_Tag, "Connecting to an AP...");
 				ESP_ERROR_CHECK(esp_wifi_connect());
 			}
 		}
-
-		if (ENUM_HAS_BIT(staBits, STA_SCAN_END_BIT))
+		else
 		{
-			xEventGroupClearBits(_event_group, STA_SCAN_END_BIT);
+			ESP_LOGW(_Scheduler_Tag, "Disconnected from the AP\n");
 		}
 	}
 }
-
-class WifiScanCommand : public ConsoleCommand
-{
-public:
-    static int Execute(int argc, char **argv)
-    {
-        WifiFunctions::Scan();
-        return 0;
-    }
-    static constexpr const esp_console_cmd_t cmd = {
-        .command = "scan",
-        .help = "Show list of stations in my range",
-        .hint = NULL,
-        .func = &WifiScanCommand::Execute,
-    };
-    WifiScanCommand() : ConsoleCommand(cmd)
-    {
-    }
-};
 
 extern "C"
 {
@@ -172,13 +145,13 @@ void app_main()
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
 	// initialize NVS
-	esp_err_t err = nvs_flash_init();
-	if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+	esp_err_t nvsErr = nvs_flash_init();
+	if (nvsErr == ESP_ERR_NVS_NO_FREE_PAGES || nvsErr == ESP_ERR_NVS_NEW_VERSION_FOUND)
 	{
 		ESP_ERROR_CHECK(nvs_flash_erase());
-		err = nvs_flash_init();
+		nvsErr = nvs_flash_init();
 	}
-	ESP_ERROR_CHECK(err);
+	ESP_ERROR_CHECK(nvsErr);
 
 	// initialize the tcp stack
 	tcpip_adapter_init();
@@ -234,13 +207,13 @@ void app_main()
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
 	ESP_ERROR_CHECK(esp_wifi_start());
 
-	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) 
-	"Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né "
-	LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD_UNDERLINED(LOG_COLOR_PURPLE) "ki."
-	LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", _ap_ssid, _sta_ssid);
+	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) "Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né " LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD_UNDERLINED(LOG_COLOR_BLUE) "ki." LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", _ap_ssid, _sta_ssid);
 
 	// Sranda začíná. Muhahahahah
-	xTaskCreate(&scanSchedulerTask, "scanSchedulerTask", 4096, NULL, 5, &_scanSchedulerHandle);
-	WifiScanCommand();
+	xTaskCreate(&scanSchedulerTask, "scanSchedulerTask", 4096, NULL, 5, NULL);
+
+	xEventGroupWaitBits(_event_group, STA_DISCONNECTED_BIT | STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+	WifiCommand(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
+	ClientsListCommand();
 	initialize_console();
 }

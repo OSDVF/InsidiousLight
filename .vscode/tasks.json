@@ -14,7 +14,8 @@
             ],
             "presentation": {
                 "reveal": "always"
-            }
+            },
+            "problemMatcher": "$gcc"
         },
         {
             "label": "Build All",
@@ -27,7 +28,8 @@
             ],
             "presentation": {
                 "reveal": "always"
-            }
+            },
+            "problemMatcher": "$gcc"
         },
         {
             "label": "Flash",
@@ -69,12 +71,11 @@
                 "monitor"
             ],
             "presentation": {
-                "reveal": "always"
+                "reveal": "always",
+                "focus": true
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": "build",
+            "problemMatcher": "$gcc"
         },
         {
             "label": "Erase flash",
@@ -118,6 +119,24 @@
             }
         },
         {
+            "label": "Better Flash & Monitor",
+            "dependsOn": [
+                "Flash",
+                "Better Monitor"
+            ],
+            "dependsOrder": "sequence",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Better Monitor",
+            "type":"shell",
+            "command": "putty.exe -load \"ESP_115200\""
+        },
+        {
             "label": "Clean",
             "command": "python",
             "type": "shell",
@@ -136,8 +155,7 @@
             "args": [
                 "E:/esp-idf/tools/idf.py",
                 "menuconfig"
-            ],
-            "problemMatcher": []
+            ]
         }
     ]
 }

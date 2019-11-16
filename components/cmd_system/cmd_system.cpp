@@ -17,7 +17,6 @@
 #include "esp_vfs_dev.h"
 #include "esp_wifi.h"
 #include "Systems.cpp"
-#include "WifiCommands.cpp"
 #include "sdkconfig.h"
 
 #ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
@@ -58,9 +57,9 @@ void initialize_console()
 		.max_cmdline_length = 256,
 		.max_cmdline_args = 8,
 #if CONFIG_LOG_COLORS
-		.hint_color = atoi(LOG_COLOR_CYAN),
+		.hint_color = atoi(LOG_COLOR_BLUE),
 #endif
-		.hint_bold = 1
+		.hint_bold = 0
 	};
 	ESP_ERROR_CHECK(esp_console_init(&console_config));
 
@@ -87,7 +86,11 @@ void consoleLoop()
 	/* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
      */
-	const char *prompt = LOG_BOLD(LOG_COLOR_CYAN) "ZŽ> " LOG_RESET_COLOR;
+	#if CONFIG_LOG_COLORS
+	const char *prompt = LOG_BOLD(LOG_COLOR_BROWN) "ZŽ> " LOG_RESET_COLOR;
+	#else
+	const char *prompt = "ZŽ> ";
+	#endif
 	int probe_status = linenoiseProbe();
 	if (probe_status)
 	{ /* zero indicates success */
@@ -95,12 +98,7 @@ void consoleLoop()
 			   "Kchůl featury jako nápověda a historje budou hrát schovku.\n"
 			   "Na Woknech zkus PuTTy.");
 		linenoiseSetDumbMode(1);
-#if CONFIG_LOG_COLORS
-		/* Since the terminal doesn't support escape sequences,
-         * don't use color codes in the prompt.
-         */
-		prompt = "ZŽ> ";
-#endif //CONFIG_LOG_COLORS
+		prompt = "[ZŽ :P]> ";
 	}
 	/* Main loop */
 	while (true)
@@ -152,7 +150,6 @@ void register_cmd_system()
     DeepSleepCommand();
     VersionCommand();
     LightSleepCommand();
-    ClientsListCommand();
 #if WITH_TASKS_INFO
     TasksInfoCommand();
 #endif
