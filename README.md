@@ -1,2 +1,6 @@
 # Zákeřná Žárovka
-No.. řekněme, že zatím to nic nedělá a jde to zkompilovat
+Žárovka, která bude zákeřná, protože se bude tvářit jako pár jiných věcí 🙃
+## Features
+ - DNS Server
+ - AP+STA Wifi Mode
+ - UART Console Interface

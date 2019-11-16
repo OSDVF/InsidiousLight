@@ -10,10 +10,13 @@
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 #include "esp_log.h"
+#include "esp_console.h"
 #include "nvs_flash.h"
 #include "WiFi Functions.cpp"
 #include "WebServer.cpp"
 #include "DnsServer.cpp"
+#include "cmd_system.h"
+#include "Systems.cpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -33,13 +36,13 @@ uint8_t _ap_max_clients = 4;
 uint8_t _ap_channel = 0;
 uint8_t _ap_hidden = 1;
 
-union IPv4{//Our small cute IPv4 holder :)
+union IPv4 { //Our small cute IPv4 holder :)
 	uint32_t ip;
 	uint8_t octets[4];
 };
-IPv4 _ap_ipv4 = {.octets = {192,168,10,1}};
-IPv4 _ap_gateway = {.octets ={192,168,10,1}};
-IPv4 _ap_mask = {.octets = {255,255,255,0}};
+IPv4 _ap_ipv4 = {.octets = {192, 168, 10, 1}};
+IPv4 _ap_gateway = {.octets = {192, 168, 10, 1}};
+IPv4 _ap_mask = {.octets = {255, 255, 255, 0}};
 
 // Event group
 #define ENUM_HAS_BIT(e, b) (e & b)
@@ -66,7 +69,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			{
 				_httpsServer = WebServer::Start();
 			}
-			DnsServer::Init(TCPIP_ADAPTER_IF_AP,_domainNames,_domainCount,_domainMaxLen);
+			DnsServer::Init(TCPIP_ADAPTER_IF_AP, _domainNames, _domainCount, _domainMaxLen);
 		}
 		if (event_id == WIFI_EVENT_STA_START)
 			xEventGroupSetBits(_event_group, STA_READY);
@@ -91,34 +94,6 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			}
 		}
 	}
-}
-
-// print the list of connected stations
-void printConnectedClients()
-{
-	printf(" Connected stations:\n");
-	printf("--------------------------------------------------\n");
-
-	wifi_sta_list_t wifi_sta_list;
-	tcpip_adapter_sta_list_t adapter_sta_list;
-
-	memset(&wifi_sta_list, 0, sizeof(wifi_sta_list));
-	memset(&adapter_sta_list, 0, sizeof(adapter_sta_list));
-
-	ESP_ERROR_CHECK(esp_wifi_ap_get_sta_list(&wifi_sta_list));
-	ESP_ERROR_CHECK(tcpip_adapter_get_sta_list(&wifi_sta_list, &adapter_sta_list));
-
-	for (int i = 0; i < adapter_sta_list.num; i++)
-	{
-
-		tcpip_adapter_sta_info_t station = adapter_sta_list.sta[i];
-		printf("%d - mac: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x - IP: %s\n", i + 1,
-			   station.mac[0], station.mac[1], station.mac[2],
-			   station.mac[3], station.mac[4], station.mac[5],
-			   ip4addr_ntoa(&(station.ip)));
-	}
-
-	printf("\n");
 }
 
 TaskHandle_t _scanSchedulerHandle;
@@ -158,15 +133,24 @@ void scanSchedulerTask(void *pvParameter)
 	}
 }
 
-//Tohle tu zatím necháme ale asi ne na dlouho, vypisuje to periodiky seznam připojených klientů
-void station_list_task(void *pvParameter)
+class WifiScanCommand : public ConsoleCommand
 {
-	while (1)
-	{
-		printConnectedClients();
-		vTaskDelay(10000 / portTICK_RATE_MS);
-	}
-}
+public:
+    static int Execute(int argc, char **argv)
+    {
+        WifiFunctions::Scan();
+        return 0;
+    }
+    static constexpr const esp_console_cmd_t cmd = {
+        .command = "scan",
+        .help = "Show list of stations in my range",
+        .hint = NULL,
+        .func = &WifiScanCommand::Execute,
+    };
+    WifiScanCommand() : ConsoleCommand(cmd)
+    {
+    }
+};
 
 extern "C"
 {
@@ -176,12 +160,12 @@ extern "C"
 void app_main()
 {
 	//Get the SETTINGS
-	_domainNames = new char*[_domainCount];
-	constexpr const char* n[] = {"chvaly.dorostmladez.cz","zarovka.cz"};
-	for(int i=0;i<2;i++)
+	_domainNames = new char *[_domainCount];
+	constexpr const char *n[] = {"chvaly.dorostmladez.cz", "zarovka.cz"};
+	for (int i = 0; i < 2; i++)
 	{
 		_domainNames[i] = new char[_domainMaxLen];
-		strcpy(_domainNames[i],n[i]);
+		strcpy(_domainNames[i], n[i]);
 	}
 	// create the event group to handle wifi events
 	_event_group = xEventGroupCreate();
@@ -189,11 +173,12 @@ void app_main()
 
 	// initialize NVS
 	esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK( nvs_flash_erase() );
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
+	if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+	{
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		err = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(err);
 
 	// initialize the tcp stack
 	tcpip_adapter_init();
@@ -204,10 +189,10 @@ void app_main()
 	// assign a static IP to the network interface
 	tcpip_adapter_ip_info_t info;
 	memset(&info, 0, sizeof(info));
-	info.ip = {.addr= _ap_ipv4.ip};
-	info.gw = {.addr= _ap_gateway.ip};
-	info.netmask = {.addr= _ap_mask.ip};
-	ESP_LOGI(_Scheduler_Tag,"Own IP: %d.%d.%d.%d (%dB)",_ap_ipv4.octets[0],_ap_ipv4.octets[1],_ap_ipv4.octets[2],_ap_ipv4.octets[4],_ap_ipv4.ip);
+	info.ip = {.addr = _ap_ipv4.ip};
+	info.gw = {.addr = _ap_gateway.ip};
+	info.netmask = {.addr = _ap_mask.ip};
+	ESP_LOGI(_Scheduler_Tag, "Own IP: %d.%d.%d.%d (%dB)", _ap_ipv4.octets[0], _ap_ipv4.octets[1], _ap_ipv4.octets[2], _ap_ipv4.octets[4], _ap_ipv4.ip);
 	ESP_ERROR_CHECK(tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &info));
 
 	// start the DHCP server
@@ -253,5 +238,6 @@ void app_main()
 
 	// Sranda začíná. Muhahahahah
 	xTaskCreate(&scanSchedulerTask, "scanSchedulerTask", 4096, NULL, 5, &_scanSchedulerHandle);
-	xTaskCreate(&station_list_task, "station_list_task", 2048, NULL, 5, NULL);
+	WifiScanCommand();
+	initialize_console();
 }

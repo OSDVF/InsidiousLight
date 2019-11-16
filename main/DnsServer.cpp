@@ -215,6 +215,6 @@ public:
         adapter = tcpip_adapter;
 
         // xTaskCreate(&dns_server_receive_task, "dns_server_receive_task", 3048, &adapter, 5, NULL);
-        xTaskCreate(&dns_server_receive_task, "dns_server_receive_task", 2048, &adapter, 5, NULL);
+        xTaskCreate(&dns_server_receive_task, "dns_server_receive_task", 3096, &adapter, 5, NULL);
     }
 };
