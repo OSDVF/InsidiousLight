@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -24,7 +25,7 @@
 class ConsoleCommand
 {
 protected:
-    static const constexpr char *TAG = "Console";
+    static const constexpr char *TAG = "CMD";
 
 public:
     ConsoleCommand(const esp_console_cmd_t cmd)
@@ -118,15 +119,89 @@ public:
 };
 
 /** 'tasks' command prints the list of tasks and related information */
-#if WITH_TASKS_INFO
-
+#if CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
 class TasksInfoCommand : public ConsoleCommand
 {
+private:
+#if CONFIG_LOG_COLORS
+    static void vColorTaskList(char *pcWriteBuffer)
+    {
+        static const char constexpr *states[] = {LOG_COLOR(LOG_COLOR_GREEN) "R" LOG_RESET_COLOR, LOG_COLOR(LOG_COLOR_RED) "B" LOG_RESET_COLOR, LOG_COLOR(LOG_COLOR_BLUE) "S" LOG_RESET_COLOR, LOG_COLOR(LOG_COLOR_BROWN) "D" LOG_RESET_COLOR, LOG_COLOR(LOG_COLOR_RED) "U" LOG_RESET_COLOR};
+        TaskStatus_t *pxTaskStatusArray;
+        volatile UBaseType_t uxArraySize, x;
+        /* Make sure the write buffer does not contain a string. */
+        *pcWriteBuffer = 0x00;
+
+        /* Take a snapshot of the number of tasks in case it changes while this
+		function is executing. */
+        uxArraySize = uxTaskGetNumberOfTasks();
+
+        /* Allocate an array index for each task.  NOTE!  if
+		configSUPPORT_DYNAMIC_ALLOCATION is set to 0 then pvPortMalloc() will
+		equate to NULL. */
+        pxTaskStatusArray = (TaskStatus_t *)pvPortMalloc(uxArraySize * sizeof(TaskStatus_t));
+
+        if (pxTaskStatusArray != NULL)
+        {
+            /* Generate the (binary) data. */
+            uxArraySize = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, NULL);
+
+            /* Create a human readable table from the binary data. */
+            for (x = 0; x < uxArraySize; x++)
+            {
+                /* Write the task name to the string, padding with spaces so it
+				can be printed in tabular form more easily. */
+                BaseType_t y;
+
+                /* Start by copying the entire string. */
+                strcpy(pcWriteBuffer, pxTaskStatusArray[x].pcTaskName);
+
+                /* Pad the end of the string with spaces to ensure columns line up when
+		printed out. */
+                for (y = strlen(pcWriteBuffer); y < (configMAX_TASK_NAME_LEN - 1); y++)
+                {
+                    pcWriteBuffer[y] = ' ';
+                }
+
+                /* Terminate. */
+                pcWriteBuffer[y] = 0x00;
+
+                /* Return the new end of string. */
+                pcWriteBuffer = &(pcWriteBuffer[y]);
+
+                int stIndex = pxTaskStatusArray[x].eCurrentState - 1;
+                if (stIndex > 4 || stIndex < 0)
+                    stIndex = 5;
+
+                    /* Write the rest of the string. */
+#if configTASKLIST_INCLUDE_COREID
+                sprintf(pcWriteBuffer, "\t%s\t%u\t%u\t%u\t%hd\r\n", states[stIndex], (unsigned int)pxTaskStatusArray[x].uxCurrentPriority, (unsigned int)pxTaskStatusArray[x].usStackHighWaterMark, (unsigned int)pxTaskStatusArray[x].xTaskNumber, (int)pxTaskStatusArray[x].xCoreID);
+#else
+                sprintf(pcWriteBuffer, "\t%s\t%u\t%u\t%u\r\n", states[stIndex], (unsigned int)pxTaskStatusArray[x].uxCurrentPriority, (unsigned int)pxTaskStatusArray[x].usStackHighWaterMark, (unsigned int)pxTaskStatusArray[x].xTaskNumber);
+#endif
+                pcWriteBuffer += strlen(pcWriteBuffer);
+            }
+
+            /* Free the array again.  NOTE!  If configSUPPORT_DYNAMIC_ALLOCATION
+			is 0 then vPortFree() will be #defined to nothing. */
+            vPortFree(pxTaskStatusArray);
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Prázdný status array");
+        }
+    }
+#endif
 public:
     static int Execute(int argc, char **argv)
     {
-        const size_t bytes_per_task = 40; /* see vTaskList description */
-        char *task_list_buffer = malloc(uxTaskGetNumberOfTasks() * bytes_per_task);
+        const size_t bytes_per_task =
+#if CONFIG_LOG_COLORS
+            50;
+#else
+            40; /* see vTaskList description */
+#endif
+        char *task_list_buffer = (char *)malloc(uxTaskGetNumberOfTasks() * bytes_per_task);
         if (task_list_buffer == NULL)
         {
             ESP_LOGE(TAG, "failed to allocate buffer for vTaskList output");
@@ -137,7 +212,11 @@ public:
         fputs("\tAffinity", stdout);
 #endif
         fputs("\n", stdout);
+#if CONFIG_LOG_COLORS
+        vColorTaskList(task_list_buffer);
+#else
         vTaskList(task_list_buffer);
+#endif
         fputs(task_list_buffer, stdout);
         free(task_list_buffer);
         return 0;

@@ -1,11 +1,9 @@
+#pragma once
 #include "esp_log.h"
 #include "esp_console.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "Systems.cpp"
-
-#ifndef _WIFI_COMMANDS
-#define _WIFI_COMMANDS
 
 class ClientsListCommand : public ConsoleCommand
 {
@@ -47,5 +45,3 @@ public:
     {
     }
 };
-
-#endif

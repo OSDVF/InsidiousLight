@@ -23,7 +23,7 @@
 #ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
 #define WITH_TASKS_INFO 1
 #endif
-
+const char *TAG = "Console";
 void consoleLoop();
 void initialize_console()
 {
@@ -43,7 +43,7 @@ void initialize_console()
 		.data_bits = UART_DATA_8_BITS,
 		.parity = UART_PARITY_DISABLE,
 		.stop_bits = UART_STOP_BITS_1,
-		.use_ref_tick = true,};
+		.use_ref_tick = true};
 	ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
 
 	/* Install UART driver for interrupt-driven reads and writes */
@@ -60,7 +60,7 @@ void initialize_console()
 #if CONFIG_LOG_COLORS
 		.hint_color = atoi(LOG_COLOR_CYAN),
 #endif
-		.hint_bold = 0
+		.hint_bold = 1
 	};
 	ESP_ERROR_CHECK(esp_console_init(&console_config));
 
@@ -87,20 +87,19 @@ void consoleLoop()
 	/* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
      */
-	const char *prompt = LOG_COLOR_I "esp32> " LOG_RESET_COLOR;
+	const char *prompt = LOG_BOLD(LOG_COLOR_CYAN) "ZŽ> " LOG_RESET_COLOR;
 	int probe_status = linenoiseProbe();
 	if (probe_status)
 	{ /* zero indicates success */
-		printf("\n"
-			   "Your terminal application does not support escape sequences.\n"
-			   "Line editing and history features are disabled.\n"
-			   "On Windows, try using Putty instead.\n");
+		ESP_LOGW(TAG,"Tvůj terminátor nepodpořuje špeciálné sekvence.\n"
+			   "Kchůl featury jako nápověda a historje budou hrát schovku.\n"
+			   "Na Woknech zkus PuTTy.");
 		linenoiseSetDumbMode(1);
 #if CONFIG_LOG_COLORS
 		/* Since the terminal doesn't support escape sequences,
          * don't use color codes in the prompt.
          */
-		prompt = "esp32> ";
+		prompt = "ZŽ> ";
 #endif //CONFIG_LOG_COLORS
 	}
 	/* Main loop */
@@ -126,19 +125,19 @@ void consoleLoop()
 		esp_err_t err = esp_console_run(line, &ret);
 		if (err == ESP_ERR_NOT_FOUND)
 		{
-			printf("Unrecognized command\n");
+			ESP_LOGE(TAG,"Téndle příkaz něznam");
 		}
 		else if (err == ESP_ERR_INVALID_ARG)
 		{
-			// command was empty
+			ESP_LOGW(TAG,"Invalidní argumentace");
 		}
 		else if (err == ESP_OK && ret != ESP_OK)
 		{
-			printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(err));
+			ESP_LOGE(TAG,"Příkaz řekl něco co něbyla nula: 0x%x (%s)", ret, esp_err_to_name(err));
 		}
 		else if (err != ESP_OK)
 		{
-			printf("Internal error: %s\n", esp_err_to_name(err));
+			ESP_LOGE(TAG,"Internátní chybka: %s", esp_err_to_name(err));
 		}
 		/* linenoise allocates line buffer on the heap, so need to free it */
 		linenoiseFree(line);
