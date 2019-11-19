@@ -18,6 +18,7 @@
 #include "cmd_system.h"
 #include "Systems.cpp"
 #include "WifiCommands.cpp"
+#include "Settings.hpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -37,13 +38,10 @@ uint8_t _ap_max_clients = 4;
 uint8_t _ap_channel = 0;
 uint8_t _ap_hidden = 1;
 
-union IPv4 { //Our small cute IPv4 holder :)
-	uint32_t ip;
-	uint8_t octets[4];
-};
-IPv4 _ap_ipv4 = {.octets = {192, 168, 10, 1}};
-IPv4 _ap_gateway = {.octets = {192, 168, 10, 1}};
-IPv4 _ap_mask = {.octets = {255, 255, 255, 0}};
+
+Settings::IPv4 _ap_ipv4 = {.octets = {192, 168, 10, 1}};
+Settings::IPv4 _ap_gateway = {.octets = {192, 168, 10, 1}};
+Settings::IPv4 _ap_mask = {.octets = {255, 255, 255, 0}};
 
 // Event group
 #define ENUM_HAS_BIT(e, b) (e & b)
@@ -215,5 +213,8 @@ void app_main()
 	xEventGroupWaitBits(_event_group, STA_DISCONNECTED_BIT | STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 	WifiCommand(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
 	ClientsListCommand();
+
+	Settings::Storage::Mount();
+	Settings::Storage::OpenConfig();
 	initialize_console();
 }
