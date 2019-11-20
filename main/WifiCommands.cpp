@@ -42,6 +42,7 @@ public:
         .help = "Show list of Wifi stations connected to me",
         .hint = NULL,
         .func = &ClientsListCommand::Execute,
+        .argtable = NULL
     };
     ClientsListCommand() : ConsoleCommand(cmd)
     {

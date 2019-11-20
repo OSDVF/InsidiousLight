@@ -59,6 +59,7 @@ public:
         .help = "Get version of chip and SDK",
         .hint = NULL,
         .func = &VersionCommand::Execute,
+        .argtable = NULL
     };
     VersionCommand() : ConsoleCommand(cmd)
     {
@@ -79,6 +80,7 @@ public:
         .help = "Software reset of the chip",
         .hint = NULL,
         .func = &RestartCommand::Execute,
+        .argtable = NULL
     };
     RestartCommand() : ConsoleCommand(cmd) {}
 };
@@ -96,6 +98,7 @@ public:
         .help = "Get the current size of free heap memory",
         .hint = NULL,
         .func = &FreeCommand::Execute,
+        .argtable = NULL
     };
     FreeCommand() : ConsoleCommand(cmd) {}
 };
@@ -114,6 +117,7 @@ public:
         .help = "Get minimum size of free heap memory that was available during program execution",
         .hint = NULL,
         .func = &HeapCommand::Execute,
+        .argtable = NULL
     };
     HeapCommand() : ConsoleCommand(cmd) {}
 };
@@ -226,6 +230,7 @@ public:
         .help = "Get information about running tasks",
         .hint = NULL,
         .func = &TasksInfoCommand::Execute,
+        .argtable = NULL
     };
     TasksInfoCommand() : ConsoleCommand(cmd) {}
 };

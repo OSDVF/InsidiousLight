@@ -27,21 +27,10 @@
 #define LOG_RESET_UNDERLINE "\033[24m"
 #define LOG_RESET_ALL "\033[0;21;24;m"
 
-char _sta_ssid[32] = "OSDVF";
-char _sta_password[32] = "ahoj1234";
-char _ap_ssid[16] = "Muhahaha";
-char _ap_password[32] = "nowyouknowmypassword";
+Settings::LocalSettings& _actualSettings = Settings::Storage::ActualSettings;
 char **_domainNames;
 uint8_t _domainCount = 2;
 uint8_t _domainMaxLen = 23;
-uint8_t _ap_max_clients = 4;
-uint8_t _ap_channel = 0;
-uint8_t _ap_hidden = 1;
-
-
-Settings::IPv4 _ap_ipv4 = {.octets = {192, 168, 10, 1}};
-Settings::IPv4 _ap_gateway = {.octets = {192, 168, 10, 1}};
-Settings::IPv4 _ap_mask = {.octets = {255, 255, 255, 0}};
 
 // Event group
 #define ENUM_HAS_BIT(e, b) (e & b)
@@ -142,28 +131,23 @@ void app_main()
 	_event_group = xEventGroupCreate();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-	// initialize NVS
-	esp_err_t nvsErr = nvs_flash_init();
-	if (nvsErr == ESP_ERR_NVS_NO_FREE_PAGES || nvsErr == ESP_ERR_NVS_NEW_VERSION_FOUND)
-	{
-		ESP_ERROR_CHECK(nvs_flash_erase());
-		nvsErr = nvs_flash_init();
-	}
-	ESP_ERROR_CHECK(nvsErr);
-
 	// initialize the tcp stack
 	tcpip_adapter_init();
 
 	// stop DHCP server
 	ESP_ERROR_CHECK(tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP));
 
+	Settings::Storage::Mount();
+	Settings::Storage::OpenConfig(true);
+
+	Settings::IPv4 apIP = _actualSettings.ApIP.Value();
 	// assign a static IP to the network interface
 	tcpip_adapter_ip_info_t info;
 	memset(&info, 0, sizeof(info));
-	info.ip = {.addr = _ap_ipv4.ip};
-	info.gw = {.addr = _ap_gateway.ip};
-	info.netmask = {.addr = _ap_mask.ip};
-	ESP_LOGI(_Scheduler_Tag, "Own IP: %d.%d.%d.%d (%dB)", _ap_ipv4.octets[0], _ap_ipv4.octets[1], _ap_ipv4.octets[2], _ap_ipv4.octets[4], _ap_ipv4.ip);
+	info.ip = {.addr = apIP.ip};
+	info.gw = {.addr = _actualSettings.ApGateway.Value().ip};
+	info.netmask = {.addr = _actualSettings.ApMask.Value().ip};
+	ESP_LOGI(_Scheduler_Tag, "Own IP: %d.%d.%d.%d (%dB)", apIP.octets[0], apIP.octets[1], apIP.octets[2], apIP.octets[3], apIP.ip);
 	ESP_ERROR_CHECK(tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &info));
 
 	// start the DHCP server
@@ -186,35 +170,34 @@ void app_main()
 	wifi_config_t sta_config;
 
 	memset(&ap_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)ap_config.ap.ssid, _ap_ssid, strlen(_ap_ssid));
-	strncpy((char *)ap_config.ap.password, _ap_password, strlen(_ap_password));
+	strncpy((char *)ap_config.ap.ssid, _actualSettings.ApSsid.Value(), strlen(_actualSettings.ApSsid.Value())+1);
+	strncpy((char *)ap_config.ap.password, _actualSettings.ApPassword.Value(), strlen(_actualSettings.ApPassword.Value())+1);
 	ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
 	ap_config.ap.ssid_len = 0;
-	ap_config.ap.ssid_hidden = _ap_hidden;
-	ap_config.ap.max_connection = _ap_max_clients;
-	ap_config.ap.channel = _ap_channel;
+	ap_config.ap.ssid_hidden = _actualSettings.Hidden.Value();
+	ap_config.ap.max_connection = _actualSettings.MaxClients.Value();
+	ap_config.ap.channel = _actualSettings.Channel.Value();
 
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap_config));
 
 	memset(&sta_config, 0, sizeof(wifi_config_t));
-	strncpy((char *)sta_config.sta.ssid, _sta_ssid, strlen(_sta_ssid));
-	strncpy((char *)sta_config.sta.password, _sta_password, strlen(_sta_password));
+	strncpy((char *)sta_config.sta.ssid, _actualSettings.StaSsid.Value(), strlen(_actualSettings.StaSsid.Value()));
+	strncpy((char *)sta_config.sta.password, _actualSettings.StaPassword.Value(), strlen(_actualSettings.StaPassword.Value()));
 	//sta_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
 	//sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &sta_config));
 	ESP_ERROR_CHECK(esp_wifi_start());
 
-	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) "Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né " LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD_UNDERLINED(LOG_COLOR_BLUE) "ki." LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", _ap_ssid, _sta_ssid);
+	printf("\nAhooj šéfe, vítej v ovládacím panelu " LOG_BOLD_UNDERLINED(LOG_COLOR_GREEN) "Zá" LOG_BOLD_UNDERLINED(LOG_COLOR_BROWN) "keř" LOG_BOLD_UNDERLINED(LOG_COLOR_CYAN) "né " LOG_BOLD_UNDERLINED(LOG_COLOR_RED) "Žá\033[1;4;38;5;214mrov" LOG_BOLD_UNDERLINED(LOG_COLOR_BLUE) "ki." LOG_RESET_ALL "\n\t--Kdo by nechtěl být žárovkouu? Já!--\nSSID:%s\nSTA:%s\n\n", 
+	_actualSettings.ApSsid.Value(), _actualSettings.StaSsid.Value());
 
 	// Sranda začíná. Muhahahahah
 	xTaskCreate(&scanSchedulerTask, "scanSchedulerTask", 4096, NULL, 5, NULL);
-
+	
 	xEventGroupWaitBits(_event_group, STA_DISCONNECTED_BIT | STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+
 	WifiCommand(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
 	ClientsListCommand();
-
-	Settings::Storage::Mount();
-	Settings::Storage::OpenConfig();
 	initialize_console();
 }

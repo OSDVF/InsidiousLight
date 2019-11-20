@@ -154,6 +154,3 @@ void register_cmd_system()
     TasksInfoCommand();
 #endif
 }
-
-
-
