@@ -11,17 +11,16 @@
 #include <string.h>
 #include <ctype.h>
 #include "driver/uart.h"
-#include "linenoise/linenoise.h"
-#include "argtable3/argtable3.h"
 #include "cmd_system.h"
 #include "esp_vfs_dev.h"
-#include "esp_wifi.h"
-#include "Systems.cpp"
 #include "sdkconfig.h"
 
-#ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
-#define WITH_TASKS_INFO 1
-#endif
+#include "esp_log.h"
+#include "esp_console.h"
+#include "argtable3/argtable3.h"
+#include "linenoise/linenoise.h"
+#include "esp_system.h"
+
 const char *TAG = "Console";
 void consoleLoop();
 void initialize_console()
@@ -91,8 +90,8 @@ void consoleLoop()
 	#else
 	const char *prompt = "ZŽ> ";
 	#endif
-	int probe_status = linenoiseProbe();
-	if (probe_status)
+	int dumbConsoleEmulator = linenoiseProbe();
+	if (dumbConsoleEmulator)
 	{ /* zero indicates success */
 		ESP_LOGW(TAG,"Tvůj terminátor nepodpořuje špeciálné sekvence.\n"
 			   "Kchůl featury jako nápověda a historje budou hrát schovku.\n"
@@ -121,6 +120,8 @@ void consoleLoop()
 		/* Try to run the command */
 		int ret;
 		esp_err_t err = esp_console_run(line, &ret);
+		if(dumbConsoleEmulator)
+			printf("\n");//Because in bad environments, command output would show on current line instead of a new one
 		if (err == ESP_ERR_NOT_FOUND)
 		{
 			ESP_LOGE(TAG,"Téndle příkaz něznam");
@@ -140,17 +141,4 @@ void consoleLoop()
 		/* linenoise allocates line buffer on the heap, so need to free it */
 		linenoiseFree(line);
 	}
-}
-
-void register_cmd_system()
-{
-    FreeCommand();
-    HeapCommand();
-    RestartCommand();
-    DeepSleepCommand();
-    VersionCommand();
-    LightSleepCommand();
-#if WITH_TASKS_INFO
-    TasksInfoCommand();
-#endif
 }

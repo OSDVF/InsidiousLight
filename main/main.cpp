@@ -19,6 +19,7 @@
 #include "Systems.cpp"
 #include "WifiCommands.cpp"
 #include "Settings.hpp"
+#include "FileCommands.hpp"
 
 #define LOG_COLOR_WHITE "37"
 #define LOG_UNDERLINED "\033[4;m"
@@ -197,7 +198,8 @@ void app_main()
 	
 	xEventGroupWaitBits(_event_group, STA_DISCONNECTED_BIT | STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 
-	WifiCommand(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
-	ClientsListCommand();
+	WifiCommands::RegisterAll(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
+	FileCommands::RegisterAll();
+	SystemCommands::RegisterAll();
 	initialize_console();
 }

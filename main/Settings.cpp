@@ -1,6 +1,8 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
 #include "Settings.hpp"

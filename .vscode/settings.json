@@ -8,7 +8,8 @@
         "nvs_flash.h": "c",
         "wifi functions.cpp": "c",
         "*.inc": "cpp",
-        "event_groups.h": "c"
+        "event_groups.h": "c",
+        "*.ipp": "cpp"
     },
     "git.autoRepositoryDetection": false,
     "taskButtons.buttons": [

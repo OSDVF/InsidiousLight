@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <cstring>
 #include <stdint.h>
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "esp_system.h"
 #include "esp_vfs.h"
-#include "esp_vfs_fat.h"
+#include "wear_levelling.h"
 
 #define ERR_STORAGE_BASE 0x9000 /*!< Starting number of storage error codes */
 #define ERR_FILE_UNOPENED ERR_STORAGE_BASE + 1;
