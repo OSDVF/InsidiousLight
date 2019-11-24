@@ -19,9 +19,6 @@
 #include "Systems.cpp"
 #include "sdkconfig.h"
 
-#ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
-#define WITH_TASKS_INFO 1
-#endif
 const char *TAG = "Console";
 void consoleLoop();
 void initialize_console()
@@ -81,7 +78,6 @@ void consoleLoop()
 {
 	/* Register commands */
 	esp_console_register_help_command();
-	register_cmd_system();
 
 	/* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
@@ -91,8 +87,8 @@ void consoleLoop()
 	#else
 	const char *prompt = "ZŽ> ";
 	#endif
-	int probe_status = linenoiseProbe();
-	if (probe_status)
+	int dumbConsoleEmulator = linenoiseProbe();
+	if (dumbConsoleEmulator)
 	{ /* zero indicates success */
 		ESP_LOGW(TAG,"Tvůj terminátor nepodpořuje špeciálné sekvence.\n"
 			   "Kchůl featury jako nápověda a historje budou hrát schovku.\n"
@@ -121,11 +117,13 @@ void consoleLoop()
 		/* Try to run the command */
 		int ret;
 		esp_err_t err = esp_console_run(line, &ret);
+		if(dumbConsoleEmulator)
+			printf("\n");//Because in bad environments, command output would show on current line instead of a new one
 		if (err == ESP_ERR_NOT_FOUND)
 		{
 			ESP_LOGE(TAG,"Téndle příkaz něznam");
 		}
-		else if (err == ESP_ERR_INVALID_ARG)
+		else if (err == ESP_ERR_INVALID_ARG||ret == ESP_ERR_INVALID_ARG)
 		{
 			ESP_LOGW(TAG,"Invalidní argumentace");
 		}
@@ -140,17 +138,4 @@ void consoleLoop()
 		/* linenoise allocates line buffer on the heap, so need to free it */
 		linenoiseFree(line);
 	}
-}
-
-void register_cmd_system()
-{
-    FreeCommand();
-    HeapCommand();
-    RestartCommand();
-    DeepSleepCommand();
-    VersionCommand();
-    LightSleepCommand();
-#if WITH_TASKS_INFO
-    TasksInfoCommand();
-#endif
 }

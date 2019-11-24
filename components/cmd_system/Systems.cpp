@@ -11,6 +11,12 @@
 #include "esp_console.h"
 #include "esp_system.h"
 
+#include "esp_sleep.h"
+#include "driver/rtc_io.h"
+#include "driver/uart.h"
+#include "argtable3/argtable3.h"
+#include "cmd_system.h"
+
 #include "sdkconfig.h"
 #ifndef _SYS_COMMANDS
 #define _SYS_COMMANDS
@@ -34,6 +40,9 @@ public:
     }
 };
 
+
+namespace SystemCommands
+{
 class VersionCommand : public ConsoleCommand
 {
 public:
@@ -59,8 +68,7 @@ public:
         .help = "Get version of chip and SDK",
         .hint = NULL,
         .func = &VersionCommand::Execute,
-        .argtable = NULL
-    };
+        .argtable = NULL};
     VersionCommand() : ConsoleCommand(cmd)
     {
     }
@@ -80,8 +88,7 @@ public:
         .help = "Software reset of the chip",
         .hint = NULL,
         .func = &RestartCommand::Execute,
-        .argtable = NULL
-    };
+        .argtable = NULL};
     RestartCommand() : ConsoleCommand(cmd) {}
 };
 
@@ -98,8 +105,7 @@ public:
         .help = "Get the current size of free heap memory",
         .hint = NULL,
         .func = &FreeCommand::Execute,
-        .argtable = NULL
-    };
+        .argtable = NULL};
     FreeCommand() : ConsoleCommand(cmd) {}
 };
 
@@ -117,8 +123,7 @@ public:
         .help = "Get minimum size of free heap memory that was available during program execution",
         .hint = NULL,
         .func = &HeapCommand::Execute,
-        .argtable = NULL
-    };
+        .argtable = NULL};
     HeapCommand() : ConsoleCommand(cmd) {}
 };
 
@@ -215,7 +220,7 @@ public:
 #ifdef CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID
         fputs("\tAffinity", stdout);
 #endif
-        fputs("\n", stdout);
+        fputs(_NewLine, stdout);
 #if CONFIG_LOG_COLORS
         vColorTaskList(task_list_buffer);
 #else
@@ -230,17 +235,12 @@ public:
         .help = "Get information about running tasks",
         .hint = NULL,
         .func = &TasksInfoCommand::Execute,
-        .argtable = NULL
-    };
+        .argtable = NULL};
     TasksInfoCommand() : ConsoleCommand(cmd) {}
 };
 
 #endif // WITH_TASKS_INFO
 
-#include "esp_sleep.h"
-#include "driver/rtc_io.h"
-#include "driver/uart.h"
-#include "argtable3/argtable3.h"
 /** 'deep_sleep' command puts the chip into deep sleep mode */
 class SleepCommand : public ConsoleCommand
 {
@@ -424,4 +424,18 @@ public:
     }
     LightSleepCommand() : SleepCommand(InitializeArgTable()) {}
 };
+
+static void RegisterAll()
+{
+    FreeCommand();
+    HeapCommand();
+    RestartCommand();
+    DeepSleepCommand();
+    VersionCommand();
+    LightSleepCommand();
+#if WITH_TASKS_INFO
+    TasksInfoCommand();
+#endif
+}
+} // namespace SystemCommands
 #endif

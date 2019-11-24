@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <cstring>
+#include <string>
 #include <stdint.h>
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
@@ -88,21 +89,21 @@ private:
     inline static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
     // Mount path for the partition
-    static const constexpr char *_base_path = "/spiflash";
-    static const constexpr char *_settingsFile = "/spiflash/settings.txt";
+    static const constexpr char *_settingsFile = "/spiflash/SETTINGS.TXT";
 
 public:
+    static const inline std::string BasePath = std::string("/spiflash");
     static const constexpr Settings::IPv4 default_ap_ip = {.octets = {192, 168, 10, 1}};
     static const constexpr Settings::IPv4 default_ap_gateway = {.octets = {192, 168, 10, 1}};
     static const constexpr Settings::IPv4 default_ap_mask = {.octets = {255, 255, 255, 0}};
-    static const constexpr char* default_ap_ssid = "Muhahaha";
-    static const constexpr char* default_ap_pass = "nowyouknowmypassword";
+    static const constexpr char *default_ap_ssid = "Muhahaha";
+    static const constexpr char *default_ap_pass = "nowyouknowmypassword";
     static const constexpr int default_max_clients = 4;
     static const constexpr int default_hidden = 1;
     static const constexpr int default_channel = 0;
-    static const constexpr char* default_sta_ssid = "OSDVF";
-    static const constexpr char* default_sta_pass = "ahoj1234";
-    
+    static const constexpr char *default_sta_ssid = "OSDVF";
+    static const constexpr char *default_sta_pass = "ahoj1234";
+
     static LocalSettings ActualSettings;
     static esp_err_t Mount();
     static void Unmount();

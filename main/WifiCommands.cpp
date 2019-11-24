@@ -8,6 +8,8 @@
 #include "Systems.cpp"
 #include "Wifi Functions.cpp"
 
+namespace WifiCommands
+{
 class ClientsListCommand : public ConsoleCommand
 {
 public:
@@ -34,7 +36,7 @@ public:
                    ip4addr_ntoa(&(station.ip)));
         }
 
-        printf("\n");
+        printf(_NewLine);
         return 0;
     }
     static constexpr const esp_console_cmd_t cmd = {
@@ -90,6 +92,7 @@ public:
                         break;
                     default:
                         ESP_LOGE(TAG, "Driver is in invalid state");
+                        [[fallthrough]]
                     case WIFI_MODE_NULL:
                         ESP_LOGI(TAG, "Starting and switching to AP");
                         ESP_ERROR_CHECK(esp_wifi_start());
@@ -108,6 +111,7 @@ public:
                         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_stop());
                         break;
                     case WIFI_MODE_NULL:
+                    [[fallthrough]]
                     case WIFI_MODE_STA:
                         ESP_LOGW(TAG, "AP is already down");
                         break;
@@ -134,11 +138,13 @@ public:
                         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_mode(WIFI_MODE_APSTA));
                         break;
                     case WIFI_MODE_APSTA:
+                        [[fallthrough]]
                     case WIFI_MODE_STA:
                         ESP_LOGW(TAG, "STA is already up");
                         break;
                     default:
                         ESP_LOGE(TAG, "Driver is in invalid state");
+                        [[fallthrough]]
                     case WIFI_MODE_NULL:
                         ESP_LOGI(TAG, "Starting and switching to STA");
                         ESP_ERROR_CHECK(esp_wifi_start());
@@ -156,6 +162,7 @@ public:
                         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_stop());
                         break;
                     case WIFI_MODE_NULL:
+                        [[fallthrough]]
                     case WIFI_MODE_AP:
                         ESP_LOGW(TAG, "STA is already down");
                         break;
@@ -239,3 +246,9 @@ private:
         return cmd;
     }
 };
+static void RegisterAll(EventGroupHandle_t e, const int startBit, const int stopBit)
+{
+    ClientsListCommand();
+    WifiCommand(e,startBit,stopBit);
+}
+}

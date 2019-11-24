@@ -7,7 +7,7 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #pragma once
-
+static const constexpr char *_NewLine = "\n";
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,9 +17,6 @@ extern "C" {
  * @note   Really endless!
  */
 void initialize_console();
-
-//Register commands into console system
-void register_cmd_system();
 
 #ifdef __cplusplus
 }

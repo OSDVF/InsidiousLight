@@ -121,7 +121,7 @@
         {
             "label": "Better Flash & Monitor",
             "dependsOn": [
-                "Flash",
+                "Flash compiled",
                 "Better Monitor"
             ],
             "dependsOrder": "sequence",
