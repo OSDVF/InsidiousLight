@@ -36,7 +36,7 @@ public:
                    ip4addr_ntoa(&(station.ip)));
         }
 
-        printf("\n");
+        printf(_NewLine);
         return 0;
     }
     static constexpr const esp_console_cmd_t cmd = {

@@ -12,6 +12,12 @@
 #include "esp_console.h"
 #include "esp_system.h"
 
+#include "esp_sleep.h"
+#include "driver/rtc_io.h"
+#include "driver/uart.h"
+#include "argtable3/argtable3.h"
+#include "cmd_system.h"
+
 #include "sdkconfig.h"
 #if CONFIG_ESP_CONSOLE_UART_NUM == 0
 #undef CONFIG_ESP_CONSOLE_UART_NUM
@@ -216,7 +222,7 @@ public:
 #ifdef CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID
         fputs("\tAffinity", stdout);
 #endif
-        fputs("\n", stdout);
+        fputs(_NewLine, stdout);
 #if CONFIG_LOG_COLORS
         vColorTaskList(task_list_buffer);
 #else
@@ -237,9 +243,6 @@ public:
 
 #endif // WITH_TASKS_INFO
 
-#include "esp_sleep.h"
-#include "driver/rtc_io.h"
-#include "driver/uart.h"
 /** 'deep_sleep' command puts the chip into deep sleep mode */
 class SleepCommand : public ConsoleCommand
 {

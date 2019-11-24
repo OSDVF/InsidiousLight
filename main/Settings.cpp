@@ -121,7 +121,7 @@ void Storage::Unmount()
 {
     // Unmount FATFS
     ESP_LOGD(TAG, "Unmounting FAT filesystem");
-    ESP_ERROR_CHECK(esp_vfs_fat_spiflash_unmount(_base_path, s_wl_handle));
+    ESP_ERROR_CHECK(esp_vfs_fat_spiflash_unmount(BasePath.c_str(), s_wl_handle));
 
     ESP_LOGI(TAG, "FATFS Unmounted");
 }
@@ -279,7 +279,7 @@ esp_err_t Storage::Mount()
         .format_if_mount_failed = true,
         .max_files = 4,
         .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
-    esp_err_t err = esp_vfs_fat_spiflash_mount(_base_path, "storage", &mount_config, &s_wl_handle);
+    esp_err_t err = esp_vfs_fat_spiflash_mount(BasePath.c_str(), "storage", &mount_config, &s_wl_handle);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));

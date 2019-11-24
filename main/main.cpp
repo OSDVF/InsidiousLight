@@ -132,6 +132,15 @@ void app_main()
 	_event_group = xEventGroupCreate();
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
+	// initialize NVS
+	esp_err_t nvsErr = nvs_flash_init();
+	if (nvsErr == ESP_ERR_NVS_NO_FREE_PAGES || nvsErr == ESP_ERR_NVS_NEW_VERSION_FOUND)
+	{
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		nvsErr = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(nvsErr);
+
 	// initialize the tcp stack
 	tcpip_adapter_init();
 
@@ -198,8 +207,8 @@ void app_main()
 	
 	xEventGroupWaitBits(_event_group, STA_DISCONNECTED_BIT | STA_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 
+	SystemCommands::RegisterAll();
 	WifiCommands::RegisterAll(_event_group, STA_SCANNING_BIT, STA_SCAN_END_BIT);
 	FileCommands::RegisterAll();
-	SystemCommands::RegisterAll();
 	initialize_console();
 }

@@ -3,6 +3,7 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "freertos/event_groups.h"
+#include "cmd_system.h"
 #define DEFAULT_SCAN_LIST_SIZE 20
 class WifiFunctions
 {
@@ -44,7 +45,7 @@ class WifiFunctions
             printf(LOG_COLOR(LOG_COLOR_CYAN) "SSID \t\t%s\t" LOG_RESET_COLOR, ap_info[i].ssid);
             printf("RSSI: %d\n", ap_info[i].rssi);
             print_auth_mode(ap_info[i].authmode);
-            printf("\n");
+            printf(_NewLine);
             if (ap_info[i].authmode != WIFI_AUTH_WEP)
             {
                 print_cipher_type(ap_info[i].pairwise_cipher, ap_info[i].group_cipher);

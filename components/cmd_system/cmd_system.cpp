@@ -80,7 +80,6 @@ void consoleLoop()
 {
 	/* Register commands */
 	esp_console_register_help_command();
-	register_cmd_system();
 
 	/* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
@@ -126,7 +125,7 @@ void consoleLoop()
 		{
 			ESP_LOGE(TAG,"Téndle příkaz něznam");
 		}
-		else if (err == ESP_ERR_INVALID_ARG)
+		else if (err == ESP_ERR_INVALID_ARG||ret == ESP_ERR_INVALID_ARG)
 		{
 			ESP_LOGW(TAG,"Invalidní argumentace");
 		}
