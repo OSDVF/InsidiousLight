@@ -13,7 +13,7 @@
 #include "esp_console.h"
 #include "nvs_flash.h"
 #include "WiFi Functions.cpp"
-#include "WebServer.cpp"
+#include "WebServer.hpp"
 #include "DnsServer.cpp"
 #include "cmd_system.h"
 #include "Systems.cpp"
@@ -30,7 +30,7 @@
 
 Settings::LocalSettings& _actualSettings = Settings::Storage::ActualSettings;
 char **_domainNames;
-uint8_t _domainCount = 2;
+uint8_t _domainCount = 1;
 uint8_t _domainMaxLen = 23;
 
 // Event group
@@ -56,7 +56,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			ESP_LOGI(_Scheduler_Tag, "Own AP started");
 			if (_httpsServer == NULL)
 			{
-				_httpsServer = WebServer::Start();
+				_httpsServer = ZarovkaWebServer::Start(Settings::Storage::BasePath.c_str());
 			}
 			if(!DnsServer::Running())
 				DnsServer::Init(TCPIP_ADAPTER_IF_AP, _domainNames, _domainCount, _domainMaxLen);
@@ -76,7 +76,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 			xEventGroupSetBits(_event_group, STA_CONNECTED_BIT);
 			if (_httpsServer == NULL)
 			{
-				_httpsServer = WebServer::Start();
+				_httpsServer = ZarovkaWebServer::Start(Settings::Storage::BasePath.c_str());
 			}
 		}
 	}
@@ -122,8 +122,8 @@ void app_main()
 {
 	//Get the SETTINGS
 	_domainNames = new char *[_domainCount];
-	constexpr const char *n[] = {"chvaly.dorostmladez.cz", "zarovka.cz"};
-	for (int i = 0; i < 2; i++)
+	constexpr const char *n[] = {"chvaly.dorostmladez.cz"};
+	for (int i = 0; i < _domainCount; i++)
 	{
 		_domainNames[i] = new char[_domainMaxLen];
 		strcpy(_domainNames[i], n[i]);
