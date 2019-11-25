@@ -22,8 +22,10 @@ public:
     {
         if (argc == 1)
             ESP_LOGE(TAG, "Takhelejó? Používá se to tagle:" LOG_RESET_COLOR " rip /spiflash/ahoj.txt");
-        else if(argc == 2)
-            if (remove(argv[1]) == 0)
+        else if (argc == 2)
+        {
+            std::string path = Settings::Storage::BasePath + argv[1];
+            if (remove(path.c_str()) == 0)
             {
                 ESP_LOGI(TAG, "File %s deleted.", argv[1]);
                 return 0;
@@ -33,6 +35,7 @@ public:
                 ESP_LOGE(TAG, "Could not delete file %s", argv[1]);
                 return -1;
             }
+        }
         else
         {
             return -2;
@@ -71,11 +74,15 @@ public:
             recursive = false;
         std::string path = std::string(Settings::Storage::BasePath);
         path += argv[1];
-        returnVal = std_scan((char *)path.c_str());
+        if (recursive)
+            returnVal = scanRecursive(path.c_str());
+        else
+            returnVal = std_scan((char *)path.c_str());
         return returnVal;
     }
     static int std_scan(char *path)
     {
+        size_t basePathLen = Settings::Storage::BasePath.length();
         struct dirent *de; // Pointer for directory entry
         DIR *dr = opendir(path);
         if (dr == NULL) // opendir returns NULL if couldn't open directory
@@ -88,13 +95,60 @@ public:
             path[len - 1] = 0;
         while ((de = readdir(dr)) != NULL)
 #if CONFIG_LOG_COLORS
-            printf(LOG_COLOR(LOG_COLOR_CYAN) "%s/" LOG_RESET_COLOR "%s\n", path, de->d_name);
+        {
+            char *fullPath = (char *)malloc(strlen(path) + strlen(de->d_name) + 2);
+            sprintf(fullPath, "%s/%s", path, de->d_name);
+            if (isDir(fullPath))
+                printf(LOG_COLOR(LOG_COLOR_CYAN) "%s/%s\n" LOG_RESET_COLOR, path + basePathLen, de->d_name);
+            else
+                printf("%s/%s\n", path + basePathLen, de->d_name);
+            free(fullPath);
+        }
 #else
             printf("%s/%s\n", path, de->d_name);
 #endif
 
         return closedir(dr);
     }
+    static bool isDir(const char *path)
+    {
+        struct stat st_buf;
+        stat(path, &st_buf);
+        return S_ISDIR(st_buf.st_mode);
+    }
+    static int scanRecursive(const char *name, int indent = 0)
+    {
+        DIR *dir;
+        struct dirent *entry;
+
+        if (!(dir = opendir(name)))
+        {
+            ESP_LOGE(TAG, "Could not open directory %s", name);
+            return ESP_ERR_FLASH_OP_FAIL;
+        }
+
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (entry->d_type == DT_DIR)
+            {
+                char *path = (char *)malloc(strlen(name) + strlen(entry->d_name) + 2);
+                sprintf(path, "%s/%s", name, entry->d_name);
+#if CONFIG_LOG_COLORS
+                printf(LOG_COLOR(LOG_COLOR_CYAN) "%*s[%s]\n" LOG_RESET_COLOR, indent, "", entry->d_name);
+#else
+                printf("%*s[%s]\n", indent, "", entry->d_name);
+#endif
+                scanRecursive(path, indent + 2);
+                free(path);
+            }
+            else
+            {
+                printf("%*s- %s\n", indent, "", entry->d_name);
+            }
+        }
+        return closedir(dir);
+    }
+
     static FRESULT ff_scanDir(
         char *path /* Start node to be scanned (***also used as work area***) */, bool recursive)
     {

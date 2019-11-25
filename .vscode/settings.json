@@ -26,5 +26,7 @@
             "buttonLabel":"Flash"
         }
     ],
+    "task.autoDetect": "off",
+    "window.zoomLevel": -0.2,
     "terminal.integrated.automationShell.windows": "C:/Windows/System32/cmd.exe"
 }
